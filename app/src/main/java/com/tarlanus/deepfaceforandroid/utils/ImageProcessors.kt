@@ -33,21 +33,57 @@ class ImageProcessors  {
     }
 
     fun loadCorrectlyOrientedBitmap(path: String): Bitmap? {
-        val bitmap = BitmapFactory.decodeFile(path) ?: return null
+        val bitmap = decodeBitmapForFaceDetection(path) ?: return null
 
         val exif = ExifInterface(path)
-        val rotationDegrees = when (exif.getAttributeInt(
-            ExifInterface.TAG_ORIENTATION,
-            ExifInterface.ORIENTATION_NORMAL
-        )) {
+        val rotation = when (
+            exif.getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL
+            )
+        ) {
             ExifInterface.ORIENTATION_ROTATE_90 -> 90
             ExifInterface.ORIENTATION_ROTATE_180 -> 180
             ExifInterface.ORIENTATION_ROTATE_270 -> 270
             else -> 0
         }
 
-        return bitmap.rotate(rotationDegrees)
+        if (rotation == 0) return bitmap
+
+        val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+        val rotated = Bitmap.createBitmap(
+            bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true
+        )
+
+        bitmap.recycle()
+        return rotated
     }
+    fun decodeBitmapForFaceDetection(
+        path: String,
+        maxSize: Int = 1024
+    ): Bitmap? {
+        val options = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        BitmapFactory.decodeFile(path, options)
+
+        var inSampleSize = 1
+        while (options.outWidth / inSampleSize > maxSize ||
+            options.outHeight / inSampleSize > maxSize
+        ) {
+            inSampleSize *= 2
+        }
+
+        return BitmapFactory.decodeFile(
+            path,
+            BitmapFactory.Options().apply {
+                this.inSampleSize = inSampleSize
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+        )
+    }
+
+
 
     fun Bitmap.rotate(degrees: Int): Bitmap {
         if (degrees == 0) return this

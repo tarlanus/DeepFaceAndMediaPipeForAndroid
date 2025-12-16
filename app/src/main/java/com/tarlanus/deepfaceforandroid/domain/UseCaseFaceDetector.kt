@@ -76,9 +76,17 @@ class UseCaseFaceDetector @Inject constructor(private val useCaseStatus: UseCase
             faceDetector.process(inputImage)
                 .addOnSuccessListener { faces ->
                     if (faces.isNotEmpty()) {
-                        val face = faces.first()
-                        val cropped = imageProcessor.cropTo160(orientedBitmap, face.boundingBox)
-                        outPutCropped(cropped)
+                        val face = faces.maxByOrNull {
+                            it.boundingBox.width() * it.boundingBox.height()
+                        }
+                        if (face != null) {
+                            val cropped = imageProcessor.cropTo160(orientedBitmap, face.boundingBox)
+                            outPutCropped(cropped)
+                        } else {
+                            outPutCropped(null)
+
+                        }
+
                     } else {
                         outPutCropped(null)
                     }
